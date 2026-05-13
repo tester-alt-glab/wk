@@ -26,7 +26,8 @@ import unittest
 from webkitpy.common.host_mock import MockHost
 from webkitpy.layout_tests import run_webkit_tests
 from webkitpy.layout_tests.controllers.single_test_runner import SingleTestRunner
-from webkitpy.layout_tests.models.test_input import Test, TestInput
+from webkitpy.layout_tests.models.test import Reference
+from webkitpy.layout_tests.models.test_input import ReferenceInput, Test, TestInput
 from webkitpy.port.driver import DriverOutput
 from webkitpy.port.test import TestPort
 
@@ -291,3 +292,71 @@ class SingleTestRunnerTest(unittest.TestCase):
             'worse-match-ref.html': [[15, 15], [30, 30]]
         }
         self.assertEqual(actual_fuzzy, expected_fuzzy, 'fuzzy data did not match expected')
+
+    def test_run_reftest_uses_reference_urls_from_test_input(self):
+        class RecordingDriver:
+            def __init__(self):
+                self.driver_inputs = []
+
+            def run_test(self, driver_input, stop_when_done):
+                self.driver_inputs.append(driver_input)
+                return DriverOutput('', b'image', 'hash', '')
+
+            def stop(self):
+                """do nothing"""
+
+        runner = self._make_test_runner('http/tests/foo/test.html')
+        d = runner._port.layout_tests_dir()
+        reference = Reference('==', os.path.join(d, 'http/tests/foo/ref.html'))
+        runner._test_input = TestInput(
+            Test('http/tests/foo/test.html', reference_files=(reference,)),
+            url='http://127.0.0.1:8000/foo/test.html',
+            reference_inputs=(ReferenceInput(reference, 'http://127.0.0.1:8000/foo/ref.html'),),
+        )
+        runner._options.additional_header = None
+        runner._driver = RecordingDriver()
+
+        runner._run_reftest()
+
+        self.assertEqual(
+            [(i.test_name, i.url) for i in runner._driver.driver_inputs],
+            [
+                ('http/tests/foo/test.html', 'http://127.0.0.1:8000/foo/test.html'),
+                ('http/tests/foo/ref.html', 'http://127.0.0.1:8000/foo/ref.html'),
+            ],
+        )
+
+    def test_run_in_cross_origin_frame_overrides_file_url(self):
+        # When --additional-header includes runInCrossOriginFrame=true, a non-HTTP
+        # test must be loaded over HTTP via the /root/ Apache alias so it can be
+        # embedded in a cross-origin frame. This preserves the legacy behavior of
+        # Driver.is_http_test() which forced the same URL transformation.
+        runner = self._make_test_runner('fast/foo.html')
+        runner._test_input = TestInput(Test('fast/foo.html'), url='file:///layout-tests/fast/foo.html')
+        runner._options.additional_header = 'runInCrossOriginFrame=true'
+
+        driver_input = runner._driver_input()
+        self.assertEqual(driver_input.url, 'http://127.0.0.1:8000/root/fast/foo.html')
+        self.assertEqual(driver_input.additional_header, 'runInCrossOriginFrame=true')
+
+    def test_run_in_cross_origin_frame_does_not_override_http_url(self):
+        # If the test is already served over HTTP/HTTPS/WPT, the natural URL must
+        # be kept; only file:// URLs are overridden.
+        runner = self._make_test_runner('http/tests/foo.html')
+        natural_url = 'http://127.0.0.1:8000/foo.html'
+        runner._test_input = TestInput(Test('http/tests/foo.html'), url=natural_url)
+        runner._options.additional_header = 'runInCrossOriginFrame=true'
+
+        driver_input = runner._driver_input()
+        self.assertEqual(driver_input.url, natural_url)
+
+    def test_no_url_override_without_runInCrossOriginFrame(self):
+        # Without the runInCrossOriginFrame header, file:// URLs should pass through
+        # unchanged even if some other additional header is set.
+        runner = self._make_test_runner('fast/foo.html')
+        natural_url = 'file:///layout-tests/fast/foo.html'
+        runner._test_input = TestInput(Test('fast/foo.html'), url=natural_url)
+        runner._options.additional_header = 'useEphemeralSession=false'
+
+        driver_input = runner._driver_input()
+        self.assertEqual(driver_input.url, natural_url)
