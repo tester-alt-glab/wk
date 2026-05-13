@@ -37,10 +37,31 @@ import socket
 
 from getpass import getuser
 from webkitpy.common.iteration_compatibility import iteritems
+from webkitpy.layout_tests.models.server_routing import ServerRoute, ServerType
 from webkitpy.layout_tests.servers import http_server_base
 
 
 _log = logging.getLogger(__name__)
+
+
+def routes(port_obj):
+    """Returns a list of ServerRoutes for HTTP tests.
+
+    Built from the document root and aliases, matching what Apache is configured with.
+    Each test_file_dir is "/"-separated, whatever the host separator."""
+    fs = port_obj.host.filesystem
+    layout_tests_dir = port_obj.layout_tests_dir()
+
+    result = [ServerRoute("http/tests", "/", ServerType.HTTP)]
+
+    server = LayoutTestApacheHttpd(port_obj, port_obj.results_directory())
+    for url_path, abs_path in server.aliases():
+        rel_path = fs.relpath(abs_path, layout_tests_dir)
+        if rel_path == '.':
+            rel_path = ''
+        result.append(ServerRoute(rel_path.replace(fs.sep, "/"), url_path + "/", ServerType.HTTP))
+
+    return result
 
 
 class LayoutTestApacheHttpd(http_server_base.HttpServerBase):
@@ -62,6 +83,7 @@ class LayoutTestApacheHttpd(http_server_base.HttpServerBase):
                               {'port': self.ALTERNATIVE_HTTP_SERVER_PORT},
                               {'port': self.HTTPS_SERVER_PORT, 'sslcert': True}]
         self._output_dir = output_dir
+        self._additional_dirs = additional_dirs
         self._filesystem.maybe_make_directory(output_dir)
 
         self._pid_file = self._filesystem.join(self._runtime_path, '%s.pid' % self._name)
@@ -70,11 +92,15 @@ class LayoutTestApacheHttpd(http_server_base.HttpServerBase):
             # Convert to MSDOS file naming:
             precompiledBuildbot = re.compile('^/home/buildbot')
             precompiledDrive = re.compile('^/cygdrive/[cC]')
-            output_dir = precompiledBuildbot.sub("C:/cygwin/home/buildbot", output_dir)
-            output_dir = precompiledDrive.sub("C:", output_dir)
+            self._output_dir = precompiledBuildbot.sub("C:/cygwin/home/buildbot", output_dir)
+            self._output_dir = precompiledDrive.sub("C:", self._output_dir)
             self.tests_dir = precompiledBuildbot.sub("C:/cygwin/home/buildbot", self.tests_dir)
             self.tests_dir = precompiledDrive.sub("C:", self.tests_dir)
             self._pid_file = self._filesystem.join("C:/xampp/apache/logs", '%s.pid' % self._name)
+
+    def start(self):
+        port_obj = self._port_obj
+        output_dir = self._output_dir
 
         mime_types_path = self._filesystem.join(self.tests_dir, "http", "conf", "mime.types")
         cert_file = self._filesystem.join(self.tests_dir, "http", "conf", "webkit-httpd.pem")
@@ -137,8 +163,8 @@ class LayoutTestApacheHttpd(http_server_base.HttpServerBase):
             if enable_ipv6:
                 start_cmd += ['-C', 'Listen [::1]:%d' % port]
 
-        if additional_dirs:
-            for alias, path in iteritems(additional_dirs):
+        if self._additional_dirs:
+            for alias, path in iteritems(self._additional_dirs):
                 if path == '.':
                     path = self.tests_dir
                 start_cmd += ['-c', 'Alias %s "%s"' % (alias, path),
@@ -156,6 +182,8 @@ class LayoutTestApacheHttpd(http_server_base.HttpServerBase):
 
         self._start_cmd = start_cmd
         self._stop_cmd = stop_cmd
+
+        super().start()
 
     def _copy_apache_config_file(self, output_dir):
         """Copy apache config file and returns the path to use.

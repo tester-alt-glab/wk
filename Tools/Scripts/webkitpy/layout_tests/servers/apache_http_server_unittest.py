@@ -27,13 +27,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import posixpath
 import sys
 import unittest
 
 from webkitpy.common.system.executive_mock import MockExecutive
 from webkitpy.common.host_mock import MockHost
 from webkitpy.port import test
-from webkitpy.layout_tests.servers.apache_http_server import LayoutTestApacheHttpd
+from webkitpy.layout_tests.models.server_routing import ServerRoute, ServerType
+from webkitpy.layout_tests.servers.apache_http_server import LayoutTestApacheHttpd, routes
 
 from webkitcorepy import OutputCapture
 
@@ -67,3 +69,23 @@ class TestLayoutTestApacheHttpd(unittest.TestCase):
             server.stop()
 
         self.assertTrue(host.filesystem.exists("/mock/output_dir/httpd.conf"))
+
+    def test_routes(self):
+        host = MockHost()
+        test_port = test.TestPort(host)
+        # Like the real filesystem, relpath() of a directory to itself is '.'.
+        host.filesystem.relpath = posixpath.relpath
+        host.filesystem.write_text_file(
+            "/mock-checkout/Tools/Scripts/webkitpy/layout_tests/servers/aliases.json",
+            '[["/js-test-resources", "resources"], ["/root", "."]]',
+        )
+
+        self.assertEqual(
+            routes(test_port),
+            [
+                ServerRoute("http/tests", "/", ServerType.HTTP),
+                ServerRoute("resources", "/js-test-resources/", ServerType.HTTP),
+                # An alias of the whole LayoutTests directory has an empty test_file_dir.
+                ServerRoute("", "/root/", ServerType.HTTP),
+            ],
+        )
