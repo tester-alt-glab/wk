@@ -54,12 +54,16 @@ def routes(port_obj):
 
     result = [ServerRoute("http/tests", "/", ServerType.HTTP)]
 
-    server = LayoutTestApacheHttpd(port_obj, port_obj.results_directory())
-    for url_path, abs_path in server.aliases():
-        rel_path = fs.relpath(abs_path, layout_tests_dir)
-        if rel_path == '.':
-            rel_path = ''
-        result.append(ServerRoute(rel_path.replace(fs.sep, "/"), url_path + "/", ServerType.HTTP))
+    # Building the routing table doesn't need a real results directory, so use a
+    # throwaway one rather than results_directory(), which requires locating the
+    # build directory.
+    with fs.mkdtemp(prefix='webkit-httpd-') as output_dir:
+        server = LayoutTestApacheHttpd(port_obj, output_dir)
+        for url_path, abs_path in server.aliases():
+            rel_path = fs.relpath(abs_path, layout_tests_dir)
+            if rel_path == '.':
+                rel_path = ''
+            result.append(ServerRoute(rel_path.replace(fs.sep, "/"), url_path + "/", ServerType.HTTP))
 
     return result
 
