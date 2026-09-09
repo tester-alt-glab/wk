@@ -6900,6 +6900,8 @@ struct WebCore::OwnerPermissionsPolicyData {
     Microphone,
     SpeakerSelection,
     DisplayCapture,
+    DeferredFetch,
+    DeferredFetchMinimal,
     Gamepad,
     Geolocation,
     Payment,

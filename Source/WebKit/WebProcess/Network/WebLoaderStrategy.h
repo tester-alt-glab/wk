@@ -75,6 +75,14 @@ public:
     void suspendPendingRequests() final;
     void resumePendingRequests() final;
 
+
+    std::pair<std::optional<uint64_t>, uint64_t> reserveDeferredFetchQuota(WebCore::LocalFrame&, WebCore::FrameIdentifier controlFrameIdentifier, const WebCore::SecurityOriginData& reportingOrigin, uint64_t maximumQuota, uint64_t requestedBytes) final;
+    void releaseDeferredFetchQuota(uint64_t) final;
+
+    bool addDeferredFetch(WebCore::LocalFrame&, uint64_t reservationIdentifier, const WebCore::ResourceRequest&, const WebCore::ResourceLoaderOptions&) final;
+    void sendDeferredFetch(uint64_t reservationIdentifier) final;
+    void removeDeferredFetch(uint64_t reservationIdentifier) final;
+
     void preconnectTo(WebCore::ResourceRequest&&, WebPage&, WebFrame&, WebCore::StoredCredentialsPolicy, ShouldPreconnectAsFirstParty, PreconnectCompletionHandler&& = nullptr);
     void preconnectTo(WebCore::FrameLoader&, WebCore::ResourceRequest&&, WebCore::StoredCredentialsPolicy, ShouldPreconnectAsFirstParty, PreconnectCompletionHandler&&) final;
     void didFinishPreconnection(WebCore::ResourceLoaderIdentifier preconnectionIdentifier, WebCore::ResourceError&&);
