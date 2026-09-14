@@ -1577,6 +1577,52 @@ void WebProcessProxy::drawFrameToSnapshot(WebCore::FrameIdentifier frameID, cons
     frameProcess->send(Messages::WebProcess::DrawFrameToSnapshot(frameID, rect, snapshotIdentifier, renderingMode), 0, IPC::SendOption::DispatchMessageEvenWhenWaitingForUnboundedSyncReply);
 }
 
+#if HAVE(IOSURFACE)
+
+RefPtr<WebPageProxy> WebProcessProxy::pageHostedAs(WebCore::PageIdentifier pageID)
+{
+    for (Ref page : pages()) {
+        if (page->hasWebPageInProcess(*this, pageID))
+            return page;
+    }
+    for (auto& remotePage : remotePages()) {
+        RefPtr page = remotePage ? remotePage->page() : nullptr;
+        if (page && page->hasWebPageInProcess(*this, pageID))
+            return page;
+    }
+    return nullptr;
+}
+
+void WebProcessProxy::completeSnapshotForLayerContents(WebCore::PageIdentifier pageID, RemoteSnapshotIdentifier snapshotIdentifier, WebCore::FrameIdentifier rootFrameIdentifier, float scale, const WebCore::ColorSpace& colorSpace, CompletionHandler<void(bool)>&& completionHandler)
+{
+    // Otherwise a compromised process could cash in a rendering it did not ask for, and have this
+    // page display it.
+    MESSAGE_CHECK_COMPLETION(snapshotIdentifier.processIdentifier() == coreProcessIdentifier(), completionHandler(false));
+
+    RefPtr page = pageHostedAs(pageID);
+    if (!page) {
+        completionHandler(false);
+        return;
+    }
+    page->completeSnapshotForLayerContents(snapshotIdentifier, rootFrameIdentifier, scale, colorSpace, WTF::move(completionHandler));
+}
+
+void WebProcessProxy::releaseSnapshotForLayerContents(WebCore::PageIdentifier pageID, RemoteSnapshotIdentifier snapshotIdentifier)
+{
+    // Otherwise a compromised process could drop a rendering another site is displaying.
+    MESSAGE_CHECK(snapshotIdentifier.processIdentifier() == coreProcessIdentifier());
+
+    if (RefPtr page = pageHostedAs(pageID))
+        page->releaseSnapshotForLayerContents(snapshotIdentifier);
+
+    // The GPU process drops its side when the rendering is drawn, but the snapshot may never have
+    // been completed: a transition can be skipped before every frame has come in.
+    if (RefPtr gpuProcess = GPUProcessProxy::singletonIfCreated())
+        gpuProcess->releaseSnapshot(snapshotIdentifier);
+}
+
+#endif // HAVE(IOSURFACE)
+
 void WebProcessProxy::gpuProcessDidFinishLaunching()
 {
     for (Ref page : pages())

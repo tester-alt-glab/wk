@@ -58,6 +58,7 @@
 #include "PageGroupLoadDeferrer.h"
 #include "PopupMenu.h"
 #include "PopupOpeningObserver.h"
+#include "RemoteSnapshotRecording.h"
 #include "RenderObject.h"
 #include "SearchPopupMenu.h"
 #include "Settings.h"
@@ -549,6 +550,11 @@ RefPtr<PlaceholderRenderingContextSource> Chrome::createPlaceholderRenderingCont
     return m_client->createPlaceholderRenderingContextSource(identifier);
 }
 #endif
+
+RefPtr<RemoteSnapshotRecording> Chrome::createRemoteSnapshotRecording(FrameIdentifier rootFrameIdentifier, const FloatSize& size, float scale, const ColorSpace& colorSpace, NOESCAPE const Function<void(GraphicsContext&)>& paint)
+{
+    return m_client->createRemoteSnapshotRecording(rootFrameIdentifier, size, scale, colorSpace, paint);
+}
 
 std::unique_ptr<WorkerClient> Chrome::createWorkerClient(SerialFunctionDispatcher& dispatcher)
 {

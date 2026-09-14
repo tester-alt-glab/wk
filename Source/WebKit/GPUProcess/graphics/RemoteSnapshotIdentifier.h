@@ -25,18 +25,11 @@
 
 #pragma once
 
-#include <wtf/UUID.h>
+#include <WebCore/RemoteSnapshotIdentifier.h>
 
 namespace WebKit {
 
-// Names a snapshot to every process that records into it or draws it. Unguessable, since holding one
-// is all it takes to record into the snapshot, or to abandon or fail it.
-using RemoteSnapshotIdentifier = WTF::UUID;
-
-// Cryptographically random, unlike WTF::UUID::createVersion4Weak().
-inline RemoteSnapshotIdentifier generateRemoteSnapshotIdentifier()
-{
-    return WTF::UUID::createVersion4();
-}
+using WebCore::RemoteSnapshotIdentifier;
+using WebCore::generateRemoteSnapshotIdentifier;
 
 }

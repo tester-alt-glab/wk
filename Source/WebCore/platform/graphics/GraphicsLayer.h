@@ -44,6 +44,7 @@
 #include <WebCore/ProcessIdentifier.h>
 #include <WebCore/ProcessQualified.h>
 #include <WebCore/Region.h>
+#include <WebCore/RemoteSnapshotIdentifier.h>
 #include <WebCore/ScrollTypes.h>
 #include <WebCore/ScrollableArea.h>
 #include <WebCore/TimingFunction.h>
@@ -395,6 +396,9 @@ public:
     // ImageBuffer to NativeImage without GPUP readback.
     virtual void setContentsToImageBuffer(ImageBuffer*) { }
     virtual bool shouldDirectlyCompositeImageBuffer(ImageBuffer*) const { return false; }
+
+    // Displays a RemoteSnapshotRecording. Cleared by setContentsToImageBuffer(nullptr).
+    virtual void setContentsToSnapshot(RemoteSnapshotIdentifier) { }
 #if PLATFORM(IOS_FAMILY)
     virtual PlatformLayer* contentsLayerForMedia() const { return 0; }
 #endif

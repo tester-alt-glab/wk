@@ -298,6 +298,11 @@ void GraphicsLayerCARemote::setLayerContentsToImageBuffer(PlatformCALayer& layer
     downcast<PlatformCALayerRemote>(layer).setRemoteDelegatedContents({ ImageBufferBackendHandle { *backendHandle }, fence, std::nullopt });
 }
 
+void GraphicsLayerCARemote::setLayerContentsToSnapshot(PlatformCALayer& layer, RemoteSnapshotIdentifier snapshot)
+{
+    downcast<PlatformCALayerRemote>(layer).setSnapshotContents(snapshot);
+}
+
 GraphicsLayer::LayerMode GraphicsLayerCARemote::layerMode() const
 {
     return GraphicsLayer::LayerMode::LayerHostingContextId;
