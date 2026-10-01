@@ -532,6 +532,8 @@ public:
     IsInitialAboutBlank isInitialAboutBlank() const { return m_isInitialAboutBlank; }
 
     CanTriggerCrossDocumentViewTransition navigationCanTriggerCrossDocumentViewTransition(Document& oldDocument, bool fromBackForwardCache);
+    bool hasDispatchedPageswapEvent() const { return m_hasDispatchedPageswapEvent; }
+    void setHasDispatchedPageswapEvent(bool hasDispatched) { m_hasDispatchedPageswapEvent = hasDispatched; }
     WEBCORE_EXPORT void whenDocumentIsCreated(Function<void(Document*)>&&);
 
     WEBCORE_EXPORT void setNewResultingClientId(ScriptExecutionContextIdentifier);
@@ -610,7 +612,10 @@ private:
     bool isPostOrRedirectAfterPost(const ResourceRequest&, const ResourceResponse&);
 
     bool tryLoadingSubstituteData();
-    void continueAfterContentPolicy(PolicyAction);
+    // completionHandler lets the rest of the response through. It may be called after this returns,
+    // when the current document first has to capture a view transition into this one.
+    void continueAfterContentPolicy(PolicyAction, CompletionHandler<void()>&& = { });
+    void commitSubstituteDataIfNeeded();
 
     void stopLoadingForPolicyChange(LoadWillContinueInAnotherProcess = LoadWillContinueInAnotherProcess::No);
     ResourceError interruptedForPolicyChangeError() const;
@@ -810,6 +815,8 @@ private:
     bool m_loadingMainResource { false };
 
     bool m_waitingForContentPolicy { false };
+    bool m_waitingForOutboundViewTransitionCapture { false };
+    bool m_hasDispatchedPageswapEvent { false };
     bool m_waitingForNavigationPolicy { false };
 
 #if ENABLE(APPLICATION_MANIFEST)
