@@ -387,7 +387,7 @@ static UnicodeBidi NODELETE forceBidiIsolationForRuby(UnicodeBidi unicodeBidi)
     return UnicodeBidi::Isolate;
 }
 
-static bool shouldTreatAutoZIndexAsZero(const Style::ComputedStyle& style)
+static bool shouldTreatAutoZIndexAsZero(RefPtr<const Element> element, const Style::ComputedStyle& style)
 {
     return !style.opacity().isOpaque()
         || style.hasTransformRelatedProperty()
@@ -406,16 +406,17 @@ static bool shouldTreatAutoZIndexAsZero(const Style::ComputedStyle& style)
 #if ENABLE(SPATIAL_PORTAL)
         || style.spatial() == SpatialType::Portal
 #endif
-        || style.willChange().canCreateStackingContext();
+        || style.willChange().canCreateStackingContext()
+        || (element && element->isCanvasDrawable());
 }
 
-void Adjuster::adjustFromBuilder(Style::ComputedStyle& style)
+void Adjuster::adjustFromBuilder(RefPtr<const Element> element, Style::ComputedStyle& style)
 {
     // Do some adjustments that don't depend on element or parent style and are safe to cache.
     // This allows copy-on-write to trigger before caching.
 
     if (style.specifiedZIndex().isAuto()) {
-        if (shouldTreatAutoZIndexAsZero(style))
+        if (shouldTreatAutoZIndexAsZero(element, style))
             style.setUsedZIndex(0);
     } else if (style.position() != PositionType::Static)
         style.setUsedZIndex(style.specifiedZIndex());
@@ -605,7 +606,7 @@ void Adjuster::adjust(Style::ComputedStyle& style) const
     if (hasAutoSpecifiedZIndex) {
         if ((m_element && m_document->documentElement() == m_element.get())
             || hasTransformRelatedProperty(style, m_element.get(), m_parentStyle)
-            || shouldTreatAutoZIndexAsZero(style)
+            || shouldTreatAutoZIndexAsZero(m_element, style)
             || isInTopLayerOrBackdrop(style, m_element.get()))
             style.setUsedZIndex(0);
         else

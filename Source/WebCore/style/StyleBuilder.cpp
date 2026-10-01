@@ -171,7 +171,7 @@ void Builder::applyNonHighPriorityProperties()
 
 void Builder::adjustAfterApplying()
 {
-    Adjuster::adjustFromBuilder(m_state->style());
+    Adjuster::adjustFromBuilder(m_state->element(), m_state->style());
 }
 
 void Builder::applyLogicalGroupProperties()

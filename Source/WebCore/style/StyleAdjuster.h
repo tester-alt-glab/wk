@@ -50,7 +50,7 @@ class Adjuster {
 public:
     Adjuster(const Document&, const Style::ComputedStyle& parentStyle, const Style::ComputedStyle* parentBoxStyle, Element*);
 
-    static void adjustFromBuilder(Style::ComputedStyle&);
+    static void adjustFromBuilder(RefPtr<const Element>, Style::ComputedStyle&);
     void adjust(Style::ComputedStyle&) const;
     void adjustAnimatedStyle(Style::ComputedStyle&, OptionSet<AnimationImpact>) const;
     void adjustUsedUserSelect(Style::ComputedStyle&) const;
