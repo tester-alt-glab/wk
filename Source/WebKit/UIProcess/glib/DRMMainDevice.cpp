@@ -29,6 +29,7 @@
 #if USE(GBM)
 #include <WebCore/DRMDevice.h>
 #include <WebCore/GLContext.h>
+#include <WebCore/GLDisplay.h>
 #include <WebCore/PlatformDisplay.h>
 #include <epoxy/egl.h>
 #include <mutex>
@@ -244,6 +245,30 @@ const WebCore::DRMDevice& drmMainDevice()
         }
     });
     return mainDevice.get();
+}
+
+bool isDisplayOnDRMMainDevice(const WebCore::GLDisplay& glDisplay)
+{
+    const auto& mainDevice = drmMainDevice();
+    if (mainDevice.isNull())
+        return true;
+
+    auto device = eglDisplayDevice(glDisplay.eglDisplay());
+    if (!device)
+        return true;
+
+    if (!mainDevice.renderNode.isNull()) {
+        auto renderNode = drmRenderNodeDevice(device);
+        if (renderNode && !renderNode->isNull())
+            return *renderNode == mainDevice.renderNode;
+    }
+
+    auto primaryNode = drmPrimaryNodeDevice(device);
+    if (primaryNode && !primaryNode->isNull())
+        return *primaryNode == mainDevice.primaryNode;
+
+    // The EGL device can't be matched to a DRM device, so don't reject the display.
+    return true;
 }
 
 } // namespace WebKit

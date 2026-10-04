@@ -116,6 +116,12 @@ bool OpenXRGraphicsBindingOpenGLES::initializeDisplay(bool isForTesting)
         glDisplay = tryCreateDisplay(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY);
         if (glDisplay && !isForTesting && !glDisplay->extensions().MESA_image_dma_buf_export)
             glDisplay = nullptr;
+#if USE(GBM)
+        // On multi-GPU systems the surfaceless display can be on a different GPU than the main DRM device, which
+        // can't import the swapchain images. Fall back to the GBM display below, which is created on the main DRM device.
+        if (glDisplay && !isForTesting && !isDisplayOnDRMMainDevice(*glDisplay))
+            glDisplay = nullptr;
+#endif
     }
 
 #if USE(GBM)
