@@ -2765,6 +2765,7 @@ void Page::finalizeRenderingUpdateForRootFrame(LocalFrame& rootFrame, OptionSet<
     LOG(EventLoop, "Page %p finalizeRenderingUpdate()", this);
 
     ASSERT(rootFrame.isRootFrame());
+    ASSERT_WITH_MESSAGE(rootFrame.isMainFrame() || !rootFrame.document() || rootFrame.document()->backForwardCacheState() == Document::NotInBackForwardCache, "A cached local root must not stay in Page::rootFrames()");
     RefPtr view = rootFrame.view();
     if (!view)
         return;
