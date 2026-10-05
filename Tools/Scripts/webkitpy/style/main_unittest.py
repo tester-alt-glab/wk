@@ -113,6 +113,9 @@ class ExpectationLinterInStyleCheckerTest(unittest.TestCase):
 
         expectation_files['/mock-checkout/LayoutTests/css1/test.html'] = 'Test'
         expectation_files['/mock-checkout/LayoutTests/css1/test-expected.txt'] = 'Test Expectation'
+        # Needed by apache_http_server.routes(), which is consulted when checking
+        # whether an expectation's test exists.
+        expectation_files['/mock-checkout/Tools/Scripts/webkitpy/layout_tests/servers/aliases.json'] = '[]'
         host.filesystem = MockFileSystem(files=expectation_files)
         return host
 

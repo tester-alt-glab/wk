@@ -29,6 +29,7 @@ import time
 
 from webkitcorepy import AutoInstall
 
+from webkitpy.layout_tests.models.server_routing import ServerRoute, ServerType
 from webkitpy.layout_tests.servers import http_server_base
 try:
     from webkitpy.layout_tests.servers.basic_dns_server import DNSLogger, DNSServer, Resolver
@@ -43,6 +44,32 @@ def doc_root(port_obj):
     if doc_root is None:
         return port_obj.host.filesystem.join("imported", "w3c", "web-platform-tests")
     return doc_root
+
+
+def routes(port_obj):
+    """Returns a list of ServerRoutes from WPT config.
+
+    Each test_file_dir is "/"-separated, whatever the host separator."""
+    fs = port_obj.host.filesystem
+    config = wpt_config_json(port_obj)
+    base_dir = doc_root(port_obj)
+
+    result = [ServerRoute(base_dir.replace(fs.sep, "/"), "/", ServerType.WPT)]
+
+    if config:
+        aliases = config.get("aliases", [])
+        for alias in aliases:
+            url_path = alias.get("url-path", "")
+            local_dir = alias.get("local-dir", "")
+            if url_path.endswith("/") and local_dir.endswith("/"):
+                # Resolve the local-dir relative to the doc_root
+                resolved = fs.normpath(fs.join(
+                    port_obj.layout_tests_dir(), base_dir, local_dir
+                ))
+                rel_path = fs.relpath(resolved, port_obj.layout_tests_dir())
+                result.append(ServerRoute(rel_path.replace(fs.sep, "/"), url_path, ServerType.WPT))
+
+    return result
 
 
 def wpt_config_json(port_obj):
