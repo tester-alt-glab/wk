@@ -285,8 +285,6 @@ TextStream& operator<<(TextStream& ts, const Image& image)
         ts << "bitmap image"_s;
     else if (image.isNamedImageGeneratedImage())
         ts << "named image"_s;
-    else if (image.isGradientImage())
-        ts << "gradient image"_s;
     else if (image.isSVGImage())
         ts << "svg image"_s;
     else if (image.isSVGResourceImage())
