@@ -2740,7 +2740,6 @@ struct RgbUVConstants {
   int8_t kRGBToV[4];
 };
 
-#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 // 8x1 pixels.
 void ARGBToUV444MatrixRow_NEON(const uint8_t* src_argb,
                                uint8_t* dst_u,
@@ -2856,6 +2855,7 @@ void RGBToUV444MatrixRow_NEON(const uint8_t* src_rgb,
         "v27");
 }
 
+#if defined(HAS_ARGBTOYROW_NEON_DOTPROD) // WEBRTC_WEBKIT_BUILD
 void ARGBToUV444MatrixRow_NEON_I8MM(const uint8_t* src_argb,
                                     uint8_t* dst_u,
                                     uint8_t* dst_v,
