@@ -59,6 +59,7 @@ class CloseWatcherManager;
 class JSDOMGlobalObject;
 class SecurityOriginData;
 struct ScrollToOptions;
+class UserGestureToken;
 struct UserGestureTokenData;
 struct WindowPostMessageOptions;
 
@@ -148,20 +149,11 @@ public:
         m_hasStickyActivation = true;
         m_hasHistoryActionActivation = true;
     }
-    WEBCORE_EXPORT void NODELETE consumeLastActivationIfNecessary();
+    void updateActivationGesture(const UserGestureToken&);
+    WEBCORE_EXPORT void consumeLastActivationIfNecessary();
     void consumeHistoryActionActivation() { m_hasHistoryActionActivation = false; }
-    MonotonicTime lastActivationTimestamp() const { return m_lastActivationTimestamp; }
-    // Takes back the transient activation that a forced user gesture (e.g. evaluateJavaScript:) granted
-    // at grantedActivationTime, restoring the activation the window had before it. Does nothing and
-    // returns false if the activation has changed since, e.g. because of a real user gesture.
-    bool revokeForcedActivation(MonotonicTime grantedActivationTime, MonotonicTime previousActivationTime)
-    {
-        if (m_lastActivationTimestamp != grantedActivationTime)
-            return false;
-        m_lastActivationTimestamp = previousActivationTime;
-        return true;
-    }
-    void notifyActivated(MonotonicTime);
+    MonotonicTime lastActivationTimestamp() const;
+    void notifyActivated(const UserGestureToken&);
     WEBCORE_EXPORT bool hasTransientActivation() const;
     bool hasStickyActivation() const;
     WEBCORE_EXPORT bool consumeTransientActivation();
@@ -406,6 +398,9 @@ public:
 private:
     explicit LocalDOMWindow(Document&);
 
+    // The start time of the most recent forced user gesture that activated this window and has not ended.
+    std::optional<MonotonicTime> lastForcedActivationTimestamp() const;
+
     ScriptExecutionContext* NODELETE scriptExecutionContext() const final;
 
     void closePage() final;
@@ -522,6 +517,7 @@ private:
     // whatwg/html#11454 (https://github.com/whatwg/html/pull/11454): sticky is
     // monotonic (set once, never cleared), history-action is consumable.
     MonotonicTime m_lastActivationTimestamp { MonotonicTime::infinity() };
+    WeakHashSet<UserGestureToken> m_activatingForcedUserGestures;
 
     std::optional<ClickEventData> m_lastUserClickEvent;
 

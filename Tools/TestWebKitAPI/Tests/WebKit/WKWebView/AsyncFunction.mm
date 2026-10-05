@@ -34,6 +34,8 @@
 #import <WebKit/WKFrameInfo.h>
 #import <WebKit/WKProcessPoolPrivate.h>
 #import <WebKit/WKWebViewPrivate.h>
+#import <wtf/Scope.h>
+#import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 
 #if PLATFORM(IOS_FAMILY)
 #import "Helpers/ios/IOSMouseEventTestHarness.h"
@@ -454,6 +456,128 @@ TEST(AsyncFunction, TransientActivationFromUserGestureIsPreserved)
     // Evaluating JavaScript must not leave behind the transient activation it grants itself, but it
     // also must not take away the transient activation the user's gesture gave the page.
     EXPECT_TRUE(hasTransientActivation(webView.get()));
+}
+
+static void evaluateJavaScriptWithUserGesture(TestWKWebView *webView, NSString *script)
+{
+    __block bool done = false;
+    [webView evaluateJavaScript:script completionHandler:^(id, NSError *error) {
+        EXPECT_NULL(error);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+}
+
+static id evaluateJavaScriptWithoutUserGesture(TestWKWebView *webView, NSString *script)
+{
+    __block bool done = false;
+    __block RetainPtr<id> result;
+    [webView _callAsyncJavaScript:script arguments:nil inFrame:nil inContentWorld:WKContentWorld.pageWorld withUserGesture:NO completionHandler:^(id value, NSError *error) {
+        EXPECT_NULL(error);
+        result = value;
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+    return result.autorelease();
+}
+
+TEST(AsyncFunction, TransientActivationFromForcedUserGesturesDoesNotOutliveScripts)
+{
+    WKWebViewConfiguration *configuration = [WKWebViewConfiguration _test_configurationWithTestPlugInClassName:@"WebProcessPlugInWithInternals" configureJSCForTesting:YES];
+    RetainPtr webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration addToWindow:NO]);
+
+    [webView synchronouslyLoadHTMLString:@"Hello"];
+
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    // Each pending timer keeps its forced user gesture alive after its script returns, so that the first one can end
+    // before the second.
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.firstTimer = setTimeout(() => { }, 100000); 1");
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    // A forced user gesture is not the user interacting with the page, so it gives neither sticky nor history-action activation.
+    EXPECT_FALSE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return navigator.userActivation.hasBeenActive") boolValue]);
+    EXPECT_FALSE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return window.internals.hasHistoryActionActivation()") boolValue]);
+
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.secondTimer = setTimeout(() => { }, 100000); 1");
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    evaluateJavaScriptWithoutUserGesture(webView.get(), @"clearTimeout(window.firstTimer)");
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    evaluateJavaScriptWithoutUserGesture(webView.get(), @"clearTimeout(window.secondTimer)");
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+}
+
+TEST(AsyncFunction, TransientActivationFromForcedUserGesturesLastsForTheirLifetimeWhenNotScopedToScript)
+{
+    // The web process inherits the SDK aligned behaviors of the UI process when it launches.
+    auto behaviors = sdkAlignedBehaviors();
+    behaviors.clear(static_cast<size_t>(SDKAlignedBehavior::EvaluateJavaScriptTransientActivationScopedToScript));
+    setSDKAlignedBehaviors(behaviors);
+    auto restoreBehaviors = makeScopeExit([] {
+        enableAllSDKAlignedBehaviors();
+    });
+
+    WKWebViewConfiguration *configuration = [WKWebViewConfiguration _test_configurationWithTestPlugInClassName:@"WebProcessPlugInWithInternals" configureJSCForTesting:YES];
+    RetainPtr webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration addToWindow:NO]);
+
+    [webView synchronouslyLoadHTMLString:@"Hello"];
+
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    // Each pending timer keeps its forced user gesture alive after its script returns, which keeps the activation it
+    // granted, so that the first one can end before the second.
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.firstTimer = setTimeout(() => { }, 100000); 1");
+    EXPECT_TRUE(hasTransientActivation(webView.get()));
+    EXPECT_TRUE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return navigator.userActivation.hasBeenActive") boolValue]);
+
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.secondTimer = setTimeout(() => { }, 100000); 1");
+    evaluateJavaScriptWithoutUserGesture(webView.get(), @"clearTimeout(window.firstTimer)");
+    EXPECT_TRUE(hasTransientActivation(webView.get()));
+
+    // Once both forced user gestures end, the page must not be left with the activation either one granted.
+    evaluateJavaScriptWithoutUserGesture(webView.get(), @"clearTimeout(window.secondTimer)");
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+}
+
+TEST(AsyncFunction, TransientActivationFromForcedUserGestureIsGivenToItsTimers)
+{
+    WKWebViewConfiguration *configuration = [WKWebViewConfiguration _test_configurationWithTestPlugInClassName:@"WebProcessPlugInWithInternals" configureJSCForTesting:YES];
+    RetainPtr webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration addToWindow:NO]);
+
+    [webView synchronouslyLoadHTMLString:@"Hello"];
+
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.timerResult = new Promise(resolve => setTimeout(() => resolve(window.internals.hasTransientActivation()), 0)); 1");
+    EXPECT_TRUE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return await window.timerResult") boolValue]);
+
+    // Once the script consumes the activation, the timers it scheduled do not get it back.
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.timerResult = new Promise(resolve => setTimeout(() => resolve(window.internals.hasTransientActivation()), 0)); window.internals.consumeTransientActivation(); 1");
+    EXPECT_FALSE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return await window.timerResult") boolValue]);
+}
+
+TEST(AsyncFunction, TransientActivationConsumedDuringForcedUserGestureIsNotRestored)
+{
+    WKWebViewConfiguration *configuration = [WKWebViewConfiguration _test_configurationWithTestPlugInClassName:@"WebProcessPlugInWithInternals" configureJSCForTesting:YES];
+    // Needs a host window so that a real user gesture can be sent.
+    RetainPtr webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration addToWindow:YES]);
+
+    [webView synchronouslyLoadHTMLString:@"<body style='margin: 0; width: 100%; height: 100%' onclick='window.webkit.messageHandlers.testHandler.postMessage(\"gesture\")' ontouchend='window.webkit.messageHandlers.testHandler.postMessage(\"gesture\")'></body>"];
+
+    simulateUserGesture(webView.get());
+    [webView waitForMessage:@"gesture"];
+    EXPECT_TRUE(hasTransientActivation(webView.get()));
+
+    // The pending timer keeps the forced user gesture alive while the page consumes the activation.
+    evaluateJavaScriptWithUserGesture(webView.get(), @"window.pendingTimer = setTimeout(() => { }, 100000); 1");
+    EXPECT_TRUE([evaluateJavaScriptWithoutUserGesture(webView.get(), @"return window.internals.consumeTransientActivation()") boolValue]);
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
+
+    evaluateJavaScriptWithoutUserGesture(webView.get(), @"clearTimeout(window.pendingTimer)");
+
+    // The page consumed the activation, so the activation the user's gesture gave it must not come back when the
+    // forced user gesture ends.
+    EXPECT_FALSE(hasTransientActivation(webView.get()));
 }
 
 #endif // PLATFORM(IOS) || PLATFORM(MACCATALYST) || PLATFORM(VISION) || PLATFORM(MAC)
