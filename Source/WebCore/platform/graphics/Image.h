@@ -74,7 +74,6 @@ public:
     virtual bool isNamedImageGeneratedImage() const { return false; }
     virtual bool isGradientImage() const { return false; }
     virtual bool NODELETE isSVGImage() const { return false; }
-    virtual bool isSVGResourceImage() const { return false; }
     virtual bool isPDFDocumentImage() const { return false; }
     virtual bool isCustomPaintImage() const { return false; }
 
