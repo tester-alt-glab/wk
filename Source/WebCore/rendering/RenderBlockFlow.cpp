@@ -894,48 +894,6 @@ LayoutUnit RenderBlockFlow::shiftForAlignContent(LayoutUnit intrinsicLogicalHeig
     return space;
 }
 
-static std::optional<size_t> maximumLinesForAutoClampPoint(const RenderBlockFlow& lineClampContainer)
-{
-    // line-clamp: auto (or just a block-ellipsis value) leaves max-lines at auto on a line-clamp container.
-    auto& style = lineClampContainer.style();
-    if (!style.maxLines().isAuto() || style.overflowContinue() != OverflowContinue::Discard || lineClampContainer.multiColumnFlow())
-        return { };
-    // "the block size the box would have if its automatic block size were infinite"
-    auto maximumContentHeight = lineClampContainer.constrainContentBoxLogicalHeightByMinMax(lineClampContainer.computeContentLogicalHeight(style.logicalHeight(), std::nullopt).value_or(LayoutUnit::max()), std::nullopt);
-    if (maximumContentHeight == LayoutUnit::max())
-        return { };
-    auto blockSizeLimit = lineClampContainer.borderAndPaddingBefore() + maximumContentHeight;
-
-    // "The auto clamp point will be set to the last possible clamp point such that, for it and all previous possible clamp points,
-    // the line-clamp container's automatic block size (as determined below) is not greater than the block size the box would have
-    // if its automatic block size were infinite."
-    // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
-    // Lines only go down in the block formatting context, so the lines that fit are the ones before the auto clamp point.
-    size_t inlineLineCount = 0;
-    auto hasLineAfterClampPoint = false;
-    for (CheckedPtr<const RenderObject> descendant = &lineClampContainer; descendant;) {
-        CheckedPtr blockFlow = dynamicDowncast<RenderBlockFlow>(*descendant);
-        auto isSkippedOver = descendant != &lineClampContainer && (descendant->isFloatingOrOutOfFlowPositioned() || (blockFlow && (blockFlow->establishesIndependentFormattingContext() || blockFlow->style().display() == Style::DisplayType::RubyText)));
-        if (isSkippedOver) {
-            descendant = descendant->nextInPreOrderAfterChildren(&lineClampContainer);
-            continue;
-        }
-        if (blockFlow && blockFlow->inlineLayout()) {
-            // The line-clamp container's block size limit in this block's coordinates, less the border and padding (of the block and its ancestors) still following its lines.
-            auto availableHeightForLines = blockSizeLimit;
-            for (CheckedPtr<const RenderBlock> ancestor = blockFlow; ancestor && ancestor != &lineClampContainer; ancestor = ancestor->containingBlock())
-                availableHeightForLines -= ancestor->logicalTop() + ancestor->borderAndPaddingAfter();
-            auto [lineCount, hasLineAfter] = blockFlow->inlineLayout()->lineCountForHeight(availableHeightForLines);
-            inlineLineCount += lineCount;
-            hasLineAfterClampPoint = hasLineAfterClampPoint || hasLineAfter;
-        }
-        descendant = descendant->nextInPreOrder(&lineClampContainer);
-    }
-    if (!hasLineAfterClampPoint)
-        return { };
-    return inlineLineCount;
-}
-
 static bool contentFitsWithinMaximumLines(const RenderBlockFlow& lineClampContainer)
 {
     // The block ellipsis goes on the last formatted line of the block with the clamped line.
@@ -997,14 +955,18 @@ void RenderBlockFlow::layoutInFlowChildren(RelayoutChildren relayoutChildren, La
         };
         layoutChildren(relayoutChildren);
 
-        auto autoClampMaximumLines = maximumLinesForAutoClampPoint(*this);
+        auto autoClamp = lineClampUpdater.isAutoLineClampRoot() ? lineClampUpdater.autoClampPoint() : std::nullopt;
         auto ellipsisIsOnLastLine = lineClampUpdater.isLineClampRoot() && contentFitsWithinMaximumLines(*this);
-        if (autoClampMaximumLines)
-            lineClampUpdater.setMaximumLines(*autoClampMaximumLines);
-        else if (ellipsisIsOnLastLine)
+        if (autoClamp) {
+            WTF::switchOn(*autoClamp, [&](size_t maximumLines) {
+                lineClampUpdater.setMaximumLines(maximumLines);
+            }, [&](const CheckedRef<const RenderBox>& clampAfterBox) {
+                lineClampUpdater.setClampAfterBox(clampAfterBox);
+            });
+        } else if (ellipsisIsOnLastLine)
             lineClampUpdater.resetLineClamp();
 
-        auto contentNeedsRelayout = autoClampMaximumLines || ellipsisIsOnLastLine;
+        auto contentNeedsRelayout = autoClamp || ellipsisIsOnLastLine;
         if (contentNeedsRelayout) {
             rebuildFloatingObjectSetFromIntrudingFloats();
             for (CheckedRef descendant : descendantsOfType<RenderBox>(*this))
@@ -1119,6 +1081,10 @@ void RenderBlockFlow::layoutBlockChildren(RelayoutChildren relayoutChildren, Lay
 
         // Lay out the child.
         layoutBlockChild(child, marginInfo, previousFloatLogicalBottom, maxFloatLogicalBottom);
+
+        // What follows this child is after the clamp point.
+        if (auto* layoutState = view().frameView().layoutContext().layoutState(); layoutState && layoutState->lineClamp() && layoutState->lineClamp()->clampAfterBox == &child)
+            layoutState->setLineClamp(RenderLayoutState::LineClamp { 0, layoutState->lineClamp()->shouldDiscardOverflow, { } });
     }
     
     if (style().marginTrim().contains(Style::MarginTrimSide::BlockEnd))
