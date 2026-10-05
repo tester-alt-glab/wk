@@ -3676,9 +3676,6 @@ style/values/will-change/StyleWillChange.cpp
 svg/DocumentSVG.cpp
 svg/IsolatedSVGDocumentContext.cpp
 svg/SVGAElement.cpp @header:RenderStyleGetters
-svg/SVGAltGlyphDefElement.cpp
-svg/SVGAltGlyphElement.cpp @header:RenderStyleGetters
-svg/SVGAltGlyphItemElement.cpp
 svg/SVGAngleValue.cpp
 svg/SVGAnimateElement.cpp
 svg/SVGAnimateElementBase.cpp
@@ -3732,8 +3729,6 @@ svg/SVGFontFaceUriElement.cpp
 svg/SVGForeignObjectElement.cpp
 svg/SVGGElement.cpp @header:RenderStyleGetters
 svg/SVGGeometryElement.cpp
-svg/SVGGlyphElement.cpp
-svg/SVGGlyphRefElement.cpp
 svg/SVGGradientElement.cpp
 svg/SVGGraphicsElement.cpp @header:RenderStyleGetters
 svg/SVGHKernElement.cpp
@@ -3749,7 +3744,6 @@ svg/SVGMPathElement.cpp
 svg/SVGMarkerElement.cpp
 svg/SVGMaskElement.cpp @header:RenderStyleGetters
 svg/SVGMetadataElement.cpp
-svg/SVGMissingGlyphElement.cpp
 svg/SVGNumberList.cpp
 svg/SVGParserUtilities.cpp
 svg/SVGPathAbsoluteConverter.cpp
