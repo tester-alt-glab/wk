@@ -30,8 +30,10 @@
 #include "AutoplayPolicy.h"
 #include "Document.h"
 #include "FrameDestructionObserverInlines.h"
-#include "HTMLFrameOwnerElement.h"
 #include "FrameInlines.h"
+#include "FrameLoader.h"
+#include "HTMLFrameOwnerElement.h"
+#include "LocalFrame.h"
 #include "NodeDocument.h"
 #include "Page.h"
 #include "PrivateClickMeasurement.h"
@@ -163,9 +165,32 @@ void RemoteFrame::setView(RefPtr<RemoteFrameView>&& view)
 
 void RemoteFrame::frameDetached()
 {
+    // A local descendant's unload handler can remove the owner element again.
+    if (std::exchange(m_hasStartedDetaching, true))
+        return;
+
+    detachLocalDescendants();
     m_client->frameDetached();
     m_window->frameDetached();
     detachFromPage();
+}
+
+void RemoteFrame::detachLocalDescendants()
+{
+    Vector<Ref<Frame>> children;
+    children.reserveInitialCapacity(tree().childCount());
+    for (RefPtr child = tree().lastChild(); child; child = child->tree().previousSibling())
+        children.append(*child);
+    for (auto& child : children) {
+        if (RefPtr localChild = dynamicDowncast<LocalFrame>(child.get()))
+            localChild->loader().detachFromParent();
+        else {
+            // Detaching a remote child would run a same-site grandchild's unload handler before its parent's.
+            Ref remoteChild = downcast<RemoteFrame>(child.get());
+            remoteChild->client().destroyProvisionalFrame();
+            remoteChild->detachLocalDescendants();
+        }
+    }
 }
 
 String RemoteFrame::renderTreeAsText(size_t baseIndent, OptionSet<RenderAsTextFlag> behavior)
