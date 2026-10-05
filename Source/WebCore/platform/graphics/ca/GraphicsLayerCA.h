@@ -169,6 +169,7 @@ public:
     WEBCORE_EXPORT void transformRelatedPropertyDidChange() override;
     WEBCORE_EXPORT void setContentsToNativeImage(NativeImage*) override;
     WEBCORE_EXPORT void setContentsToImageBuffer(ImageBuffer*) override;
+    WEBCORE_EXPORT void setContentsToSnapshot(RemoteSnapshotIdentifier) override;
 #if PLATFORM(IOS_FAMILY)
     WEBCORE_EXPORT PlatformLayer* contentsLayerForMedia() const override;
 #endif
@@ -332,6 +333,7 @@ private:
     virtual Ref<PlatformCAAnimation> createPlatformCAAnimation(PlatformCAAnimation::AnimationType, const String& keyPath);
 
     virtual void setLayerContentsToImageBuffer(PlatformCALayer&, ImageBuffer*) { }
+    virtual void setLayerContentsToSnapshot(PlatformCALayer&, RemoteSnapshotIdentifier) { }
 
     PlatformCALayer* primaryLayer() const { return m_structuralLayer.get() ? m_structuralLayer.get() : m_layer.get(); }
     PlatformCALayer* NODELETE hostLayerForSublayers() const;
@@ -747,6 +749,7 @@ private:
 
     RefPtr<NativeImage> m_pendingContentsImage;
     RefPtr<ImageBuffer> m_pendingContentsImageBuffer;
+    Markable<RemoteSnapshotIdentifier> m_pendingContentsSnapshot;
 
 #if ENABLE(MODEL_ELEMENT)
     RefPtr<Model> m_contentsModel;

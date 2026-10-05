@@ -29,6 +29,7 @@
 #import "AuxiliaryProcessProxy.h"
 #import "LayerProperties.h"
 #import "Logging.h"
+#import "RemoteLayerBackingStore.h"
 #import "RemoteLayerTreeCommitBundle.h"
 #import "RemoteLayerTreeDrawingAreaProxy.h"
 #import "RemoteLayerTreePropertyApplier.h"
@@ -231,6 +232,9 @@ bool RemoteLayerTreeHost::updateLayerTree(const IPC::Connection& connection, con
 
         RemoteLayerTreePropertyApplier::applyProperties(*node, this, properties, m_nodes);
 
+        if (properties.changedProperties.contains(LayerChange::SnapshotContentsChanged))
+            applySnapshotContents(*node, processIdentifier, properties.snapshotContents);
+
         if (m_isDebugLayerTreeHost) {
             RetainPtr layer = node->layer();
             if (properties.changedProperties.contains(LayerChange::BorderWidthChanged))
@@ -271,6 +275,50 @@ void RemoteLayerTreeHost::asyncSetLayerContents(PlatformLayerIdentifier layerID,
         return;
 
     node->applyBackingStore(this, properties);
+}
+
+bool RemoteLayerTreeHost::reserveSnapshotContents(RemoteSnapshotIdentifier snapshot)
+{
+    return m_snapshotContents.add(snapshot, nullptr).isNewEntry;
+}
+
+bool RemoteLayerTreeHost::setSnapshotContents(RemoteSnapshotIdentifier snapshot, ImageBufferBackendHandle&& handle)
+{
+    auto iterator = m_snapshotContents.find(snapshot);
+    if (iterator == m_snapshotContents.end())
+        return false;
+    auto contents = RemoteLayerBackingStoreProperties::layerContentsBufferFromBackendHandle(WTF::move(handle), true);
+    if (!contents.buffer)
+        return false;
+    iterator->value = WTF::move(contents.buffer);
+    return true;
+}
+
+void RemoteLayerTreeHost::releaseSnapshotContents(RemoteSnapshotIdentifier snapshot)
+{
+    m_snapshotContents.remove(snapshot);
+}
+
+void RemoteLayerTreeHost::removeSnapshotContentsForProcess(WebCore::ProcessIdentifier processIdentifier)
+{
+    // Only the minting process can release or display one, so nothing else would drop them.
+    m_snapshotContents.removeIf([&](auto& entry) {
+        return entry.key.processIdentifier() == processIdentifier;
+    });
+}
+
+void RemoteLayerTreeHost::applySnapshotContents(RemoteLayerTreeNode& node, WebCore::ProcessIdentifier sender, Markable<RemoteSnapshotIdentifier> snapshot)
+{
+    // Only the process that minted a snapshot may display it, and only on its own layers. Both
+    // identifiers are chosen by the sender, so both are checked against it.
+    RetainPtr<id> contents;
+    if (snapshot && snapshot->processIdentifier() == sender && node.layerID().processIdentifier() == sender)
+        contents = m_snapshotContents.get(*snapshot);
+
+    if (contents)
+        [node.layer() setContents:contents.get()];
+    else
+        [node.layer() _web_clearContents];
 }
 
 RemoteLayerTreeNode* RemoteLayerTreeHost::nodeForID(std::optional<PlatformLayerIdentifier> layerID) const

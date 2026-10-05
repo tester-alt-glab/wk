@@ -76,6 +76,7 @@
 #include "WebProcess.h"
 #include "WebProcessPoolMessages.h"
 #include "WebProcessProxyMessages.h"
+#include "WebRemoteSnapshotRecording.h"
 #include "WebSearchPopupMenu.h"
 #include "WebWorkerClient.h"
 #include <WebCore/AXObjectCache.h>
@@ -1243,6 +1244,17 @@ void WebChromeClient::offscreenCanvasPlaceholderLayerChanged(WebCore::Placeholde
 {
     if (RefPtr page = m_page.get())
         page->send(Messages::WebPageProxy::SetOffscreenCanvasPlaceholderLayer(identifier, layerID));
+}
+#endif
+
+#if HAVE(IOSURFACE)
+RefPtr<WebCore::RemoteSnapshotRecording> WebChromeClient::createRemoteSnapshotRecording(WebCore::FrameIdentifier rootFrameIdentifier, const WebCore::FloatSize& size, float scale, const WebCore::ColorSpace& colorSpace, NOESCAPE const Function<void(WebCore::GraphicsContext&)>& paint)
+{
+    RefPtr page = m_page.get();
+    // Only layers composited in the UI process can display the result.
+    if (!page || !page->corePage()->settings().remoteSnapshottingEnabled() || !isUsingUISideCompositing())
+        return nullptr;
+    return WebRemoteSnapshotRecording::create(*page, rootFrameIdentifier, size, scale, colorSpace, paint);
 }
 #endif
 #endif

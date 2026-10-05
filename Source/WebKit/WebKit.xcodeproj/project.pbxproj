@@ -1566,6 +1566,7 @@
 		5C1A7E512FA0000000000001 /* TransientZoomState.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C1A7E502FA0000000000001 /* TransientZoomState.h */; };
 		5C20CBA01BB1ECD800895BB1 /* NetworkSession.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C20CB9E1BB0DD1800895BB1 /* NetworkSession.h */; };
 		5C2397D52949235800BB4E10 /* WebRemoteFrameClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C2397D32949235700BB4E10 /* WebRemoteFrameClient.h */; };
+		DF9F173318F2C44C95734886 /* WebRemoteSnapshotRecording.h in Headers */ = {isa = PBXBuildFile; fileRef = C6BE81F46F00E97FF47359F2 /* WebRemoteSnapshotRecording.h */; };
 		5C26958520043212005C439B /* WKOpenPanelParametersPrivate.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C26958420042F12005C439B /* WKOpenPanelParametersPrivate.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		5C298DA01C3DF02100470AFE /* PendingDownload.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C298D9E1C3DEF2900470AFE /* PendingDownload.h */; };
 		5C2C6FA927C9E5E200CCDA9E /* _WKDataTask.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C2C6FA427C9529900CCDA9E /* _WKDataTask.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -6734,6 +6735,8 @@
 		5C20CB9E1BB0DD1800895BB1 /* NetworkSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NetworkSession.h; sourceTree = "<group>"; };
 		5C2397D32949235700BB4E10 /* WebRemoteFrameClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WebRemoteFrameClient.h; sourceTree = "<group>"; };
 		5C2397D42949235700BB4E10 /* WebRemoteFrameClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WebRemoteFrameClient.cpp; sourceTree = "<group>"; };
+		398C30ABB490833500FA22A1 /* WebRemoteSnapshotRecording.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WebRemoteSnapshotRecording.cpp; sourceTree = "<group>"; };
+		C6BE81F46F00E97FF47359F2 /* WebRemoteSnapshotRecording.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WebRemoteSnapshotRecording.h; sourceTree = "<group>"; };
 		5C26958420042F12005C439B /* WKOpenPanelParametersPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WKOpenPanelParametersPrivate.h; sourceTree = "<group>"; };
 		5C298D9E1C3DEF2900470AFE /* PendingDownload.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PendingDownload.h; sourceTree = "<group>"; };
 		5C2B1AF3223AB72800B91CF7 /* DownloadMonitor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DownloadMonitor.cpp; sourceTree = "<group>"; };
@@ -16172,6 +16175,8 @@
 				1A1E093218861D3800D2DC49 /* WebProgressTrackerClient.h */,
 				5C2397D42949235700BB4E10 /* WebRemoteFrameClient.cpp */,
 				5C2397D32949235700BB4E10 /* WebRemoteFrameClient.h */,
+				398C30ABB490833500FA22A1 /* WebRemoteSnapshotRecording.cpp */,
+				C6BE81F46F00E97FF47359F2 /* WebRemoteSnapshotRecording.h */,
 				4671FF1E23217EFF001B64C7 /* WebResourceLoadObserver.cpp */,
 				4671FF1D23217EFF001B64C7 /* WebResourceLoadObserver.h */,
 				46DC53C128EB3D90005376B0 /* WebScreenOrientationManager.cpp */,
@@ -19470,6 +19475,7 @@
 				51BE6C5C2AA92521001745C1 /* WebPushToolMain.h in Headers */,
 				5C2397D52949235800BB4E10 /* WebRemoteFrameClient.h in Headers */,
 				461CCCA6231485AA00B659B9 /* WebRemoteObjectRegistry.h in Headers */,
+				DF9F173318F2C44C95734886 /* WebRemoteSnapshotRecording.h in Headers */,
 				A5860E71230F67FC00461AAE /* WebResourceInterceptController.h in Headers */,
 				510AFFBA16542048001BA05E /* WebResourceLoader.h in Headers */,
 				51F060E01654317F00F3281B /* WebResourceLoaderMessages.h in Headers */,

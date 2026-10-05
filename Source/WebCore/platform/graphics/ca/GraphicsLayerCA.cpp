@@ -1369,6 +1369,7 @@ void GraphicsLayerCA::setContentsToNativeImage(NativeImage* image)
     }
     m_contentsDisplayDelegate = nullptr;
     m_pendingContentsImageBuffer = nullptr;
+    m_pendingContentsSnapshot = { };
 
     noteLayerPropertyChanged(ContentsImageChanged);
 }
@@ -1392,6 +1393,23 @@ void GraphicsLayerCA::setContentsToImageBuffer(ImageBuffer* image)
     }
     m_contentsDisplayDelegate = nullptr;
     m_pendingContentsImage = nullptr;
+    m_pendingContentsSnapshot = { };
+
+    noteLayerPropertyChanged(ContentsImageChanged);
+}
+
+void GraphicsLayerCA::setContentsToSnapshot(RemoteSnapshotIdentifier snapshot)
+{
+    if (m_pendingContentsSnapshot == snapshot)
+        return;
+
+    m_pendingContentsSnapshot = snapshot;
+    m_contentsLayerPurpose = ContentsLayerPurpose::Image;
+    if (!m_contentsLayer)
+        noteSublayersChanged();
+    m_contentsDisplayDelegate = nullptr;
+    m_pendingContentsImage = nullptr;
+    m_pendingContentsImageBuffer = nullptr;
 
     noteLayerPropertyChanged(ContentsImageChanged);
 }
@@ -1540,6 +1558,7 @@ void GraphicsLayerCA::setContentsDisplayDelegate(RefPtr<GraphicsLayerContentsDis
     m_contentsLayer = nullptr;
     m_contentsDisplayDelegate = nullptr;
     m_contentsLayerPurpose = ContentsLayerPurpose::None;
+    m_pendingContentsSnapshot = { };
     if (delegate) {
         Ref contentsLayer = createPlatformCALayer(PlatformCALayer::LayerType::LayerTypeContentsProvidedLayer, this);
         m_contentsLayer = contentsLayer.copyRef();
@@ -3198,7 +3217,7 @@ void GraphicsLayerCA::updateBackgroundColor()
 
 void GraphicsLayerCA::updateContentsImage()
 {
-    if (m_pendingContentsImage || m_pendingContentsImageBuffer) {
+    if (m_pendingContentsImage || m_pendingContentsImageBuffer || m_pendingContentsSnapshot) {
         if (!m_contentsLayer.get()) {
             Ref contentsLayer = createPlatformCALayer(PlatformCALayer::LayerType::LayerTypeLayer, this);
             m_contentsLayer = contentsLayer.copyRef();
@@ -3218,12 +3237,16 @@ void GraphicsLayerCA::updateContentsImage()
 
         if (RefPtr pendingContentsImage = std::exchange(m_pendingContentsImage, nullptr))
             contentsLayer->setContents(pendingContentsImage->platformImage().get());
+        else if (m_pendingContentsSnapshot)
+            setLayerContentsToSnapshot(contentsLayer, *m_pendingContentsSnapshot);
         else
             setLayerContentsToImageBuffer(contentsLayer, m_pendingContentsImageBuffer.get());
 
         if (m_layerClones) {
             for (auto& layer : m_layerClones->contentsLayerClones.values()) {
-                if (m_pendingContentsImageBuffer)
+                if (m_pendingContentsSnapshot)
+                    setLayerContentsToSnapshot(layer, *m_pendingContentsSnapshot);
+                else if (m_pendingContentsImageBuffer)
                     setLayerContentsToImageBuffer(layer, m_pendingContentsImageBuffer.get());
                 else
                     layer->setContents(protect(contentsLayer->contents()));

@@ -32,6 +32,10 @@
 #include <wtf/RunLoop.h>
 #include <wtf/TZoneMallocInlines.h>
 
+#if HAVE(IOSURFACE)
+#include "ImageBufferShareableMappedIOSurfaceBackend.h"
+#endif
+
 namespace WebKit {
 using namespace WebCore;
 
@@ -274,6 +278,32 @@ std::optional<ShareableBitmap::Handle> RemoteSnapshot::drawToBitmap(const FloatS
 
     return image->createHandle(SharedMemory::Protection::ReadOnly);
 }
+
+#if HAVE(IOSURFACE)
+
+std::optional<ImageBufferBackendHandle> RemoteSnapshot::drawToLayerContents(const FloatSize& size, float scale, const ColorSpace& colorSpace, FrameIdentifier rootFrameIdentifier, const ProcessIdentity& resourceOwner)
+{
+    ASSERT(isComplete());
+    ImageBufferCreationContext creationContext;
+    creationContext.resourceOwner = resourceOwner;
+    RefPtr buffer = ImageBuffer::create<ImageBufferShareableMappedIOSurfaceBackend>(size, scale, colorSpace, ImageBufferFormat { PixelFormat::BGRA8 }, RenderingPurpose::Snapshot, creationContext);
+    if (!buffer)
+        return std::nullopt;
+
+    if (!applyFrame(rootFrameIdentifier, buffer->context()))
+        return std::nullopt;
+
+    buffer->flushDrawingContext();
+
+    auto* sharing = dynamicDowncast<ImageBufferBackendHandleSharing>(buffer->toBackendSharing());
+    if (!sharing)
+        return std::nullopt;
+
+    // Read only: the surface is handed to the UI process to display, and nothing writes to it again.
+    return sharing->createBackendHandle(SharedMemory::Protection::ReadOnly);
+}
+
+#endif
 
 }
 
