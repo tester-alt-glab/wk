@@ -106,6 +106,11 @@ void CachedFrameBase::restore()
     Ref frame = view->frame();
     RefPtr localFrame = dynamicDowncast<LocalFrame>(frame.get());
 
+    if (localFrame && !m_isMainFrame && localFrame->isRootFrame()) {
+        if (RefPtr page = localFrame->page())
+            page->addRootFrame(*localFrame);
+    }
+
     if (m_document) {
         ASSERT(m_document->view() == view);
         Ref document = *m_document;
@@ -201,6 +206,12 @@ CachedFrame::CachedFrame(Frame& frame)
 
         // documentWillSuspendForBackForwardCache() can set up a layout timer on the FrameView, so clear timers after that.
         localFrame->clearTimers();
+    }
+
+    // Unlike a subframe, the main frame stays attached to its page and is reused for the next document.
+    if (localFrame && !m_isMainFrame && localFrame->isRootFrame()) {
+        if (RefPtr page = localFrame->page())
+            page->removeRootFrame(*localFrame);
     }
 
     // Deconstruct the FrameTree, to restore it later.
