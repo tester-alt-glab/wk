@@ -521,13 +521,13 @@ void HTMLConstructionSite::insertDoctype(AtomHTMLToken&& token)
 void HTMLConstructionSite::insertProcessingInstruction(AtomHTMLToken&& token)
 {
     ASSERT(token.type() == HTMLToken::Type::ProcessingInstruction);
-    attachLater(protect(currentNode()), ProcessingInstruction::create(protect(ownerDocumentForCurrentNode()), String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
+    attachLater(protect(currentNode()), ProcessingInstruction::createWithoutValidation(protect(ownerDocumentForCurrentNode()), String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
 }
 
 void HTMLConstructionSite::insertProcessingInstructionOnDocument(AtomHTMLToken&& token)
 {
     ASSERT(token.type() == HTMLToken::Type::ProcessingInstruction);
-    attachLater(protect(m_attachmentRoot), ProcessingInstruction::create(protect(m_document), String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
+    attachLater(protect(m_attachmentRoot), ProcessingInstruction::createWithoutValidation(protect(m_document), String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
 }
 
 void HTMLConstructionSite::insertProcessingInstructionOnHTMLHtmlElement(AtomHTMLToken&& token)
@@ -535,7 +535,7 @@ void HTMLConstructionSite::insertProcessingInstructionOnHTMLHtmlElement(AtomHTML
     ASSERT(token.type() == HTMLToken::Type::ProcessingInstruction);
     Ref root = m_openElements.rootNode();
     Ref rootDocument = root->document();
-    attachLater(WTF::move(root), ProcessingInstruction::create(rootDocument, String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
+    attachLater(WTF::move(root), ProcessingInstruction::createWithoutValidation(rootDocument, String { token.processingInstructionTarget() }, String { token.processingInstructionData() }));
 }
 
 void HTMLConstructionSite::insertComment(AtomHTMLToken&& token)
