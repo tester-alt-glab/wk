@@ -28,12 +28,16 @@
 #if USE(GBM)
 
 namespace WebCore {
+class GLDisplay;
 struct DRMDevice;
 }
 
 namespace WebKit {
 
 const WebCore::DRMDevice& drmMainDevice();
+
+// Returns false if the display is known to be on a different DRM device than the main one.
+bool isDisplayOnDRMMainDevice(const WebCore::GLDisplay&);
 
 } // namespace WebKit
 
