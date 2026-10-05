@@ -544,9 +544,7 @@ static void setup_rtcd_internal(void)
 #endif  // HAVE_NEON_DOTPROD
     av1_filter_intra_predictor = av1_filter_intra_predictor_neon;
     av1_get_crc32c_value = av1_get_crc32c_value_c;
-#if HAVE_ARM_CRC32
     if (flags & HAS_ARM_CRC32) av1_get_crc32c_value = av1_get_crc32c_value_arm_crc32;
-#endif
     av1_resize_and_extend_frame = av1_resize_and_extend_frame_neon;
 #if HAVE_NEON_DOTPROD
     if (flags & HAS_NEON_DOTPROD) av1_resize_and_extend_frame = av1_resize_and_extend_frame_neon_dotprod;
